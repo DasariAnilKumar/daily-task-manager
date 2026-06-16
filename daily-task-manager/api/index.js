@@ -116,6 +116,126 @@ app.post('/api/tasks/batch', async (req, res) => {
   }
 });
 
+// Daily Cron Job to email pending tasks
+app.get('/api/cron/email', async (req, res) => {
+  // Simple validation for Vercel Cron Secret (if configured)
+  const authHeader = req.headers.authorization;
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Get current date and day of week in IST (GMT+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(Date.now() + istOffset);
+    const todayIST = istDate.toISOString().split('T')[0];
+    const dayOfWeek = istDate.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
+
+    // Helper to format an overdue badge
+    const formatTaskDate = (taskDate) => {
+      if (taskDate < todayIST) {
+        return ` <span style="color: #ef4444; font-size: 11px; font-weight: bold; background-color: #fef2f2; padding: 2px 6px; border-radius: 4px; margin-left: 8px; border: 1px solid #fee2e2;">Overdue: ${taskDate}</span>`;
+      }
+      return '';
+    };
+
+    // Monday (1): Get all pending + overdue tasks. Other days: Get only today's pending tasks.
+    const isMonday = dayOfWeek === 1;
+    const sqlQuery = isMonday
+      ? "SELECT * FROM tasks WHERE date <= $1 AND status != 'done' ORDER BY date ASC, status, sort_order"
+      : "SELECT * FROM tasks WHERE date = $1 AND status != 'done' ORDER BY status, sort_order";
+
+    const { rows } = await query(sqlQuery, [todayIST]);
+
+    if (rows.length === 0) {
+      console.log('No pending tasks to email.');
+      return res.json({ success: true, message: 'No pending tasks to email.' });
+    }
+
+    // Check for required SMTP environment variables
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.EMAIL_TO) {
+      console.warn('SMTP configuration is incomplete in .env file.');
+      return res.status(400).json({ error: 'SMTP configurations are missing in environment.' });
+    }
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const todoTasks = rows.filter(t => t.status === 'todo');
+    const inProgressTasks = rows.filter(t => t.status === 'in-progress');
+
+    let htmlContent = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1a202c; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <h2 style="color: #6366f1; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-top: 0; font-size: 22px;">📋 Daily Pending Tasks Summary</h2>
+        <p style="font-size: 15px; color: #4a5568; margin-bottom: 20px;">
+          ${isMonday 
+            ? 'Here is your weekly overview of all pending and overdue tasks:' 
+            : 'Here are your pending tasks for today:'
+          } <strong>${new Date(todayIST).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>:
+        </p>
+    `;
+
+    if (todoTasks.length > 0) {
+      htmlContent += `
+        <h3 style="color: #ec4899; margin-top: 24px; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📌 To Do (${todoTasks.length})</h3>
+        <ul style="padding-left: 20px; margin: 8px 0; line-height: 1.6; color: #2d3748;">
+          ${todoTasks.map(t => `
+            <li style="margin-bottom: 14px;">
+              <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDate(t.date)}
+              ${t.text ? `<div style="color: #718096; font-size: 13px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #edf2f7;">${t.text.replace(/<[^>]*>/g, '')}</div>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    if (inProgressTasks.length > 0) {
+      htmlContent += `
+        <h3 style="color: #eab308; margin-top: 24px; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">⏳ In Progress (${inProgressTasks.length})</h3>
+        <ul style="padding-left: 20px; margin: 8px 0; line-height: 1.6; color: #2d3748;">
+          ${inProgressTasks.map(t => `
+            <li style="margin-bottom: 14px;">
+              <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDate(t.date)}
+              ${t.text ? `<div style="color: #718096; font-size: 13px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #edf2f7;">${t.text.replace(/<[^>]*>/g, '')}</div>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    htmlContent += `
+        <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #edf2f7; font-size: 11px; color: #a0aec0; text-align: center;">
+          This is an automated notification from your Daily Task Manager (TaskFlow).
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+      to: process.env.EMAIL_TO,
+      subject: isMonday
+        ? `📋 TaskFlow: Weekly Task Overview (All Pending)`
+        : `📋 TaskFlow: Pending Tasks for ${todayIST}`,
+      html: htmlContent,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Daily tasks summary email sent successfully!');
+    res.json({ success: true, message: 'Daily tasks summary email sent successfully!' });
+  } catch (err) {
+    console.error('Failed to execute daily tasks email cron job:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Export app for Vercel
 if (require.main === module) {
   const PORT = 3001;
