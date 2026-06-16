@@ -1,42 +1,90 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
-const { Pool } = require('pg');
+const path = require('path');
 
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is not set. Please add it to your .env file or Vercel dashboard.');
-  process.exit(1);
+let queryFn;
+let poolObj;
+
+if (process.env.DATABASE_URL) {
+  console.log('DATABASE_URL is set. Using PostgreSQL...');
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle pg client', err);
+  });
+
+  queryFn = (text, params) => pool.query(text, params);
+  poolObj = pool;
+
+  // Initialize tables (pg)
+  const initDB = async () => {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL DEFAULT 'default_user',
+          title TEXT NOT NULL,
+          text TEXT NOT NULL,
+          status VARCHAR(50) NOT NULL,
+          date VARCHAR(50) NOT NULL,
+          sort_order INTEGER NOT NULL
+        );
+      `);
+      console.log('PostgreSQL database connected and initialized successfully!');
+    } catch (err) {
+      console.error('Error initializing PostgreSQL tables:', err);
+    }
+  };
+  initDB();
+
+} else {
+  console.warn('DATABASE_URL is not set. Falling back to local SQLite database (database.sqlite)...');
+  const Database = require('better-sqlite3');
+  const dbPath = path.resolve(__dirname, 'database.sqlite');
+  const db = new Database(dbPath);
+
+  // Initialize tables (sqlite)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT 'default_user',
+      title TEXT NOT NULL,
+      text TEXT NOT NULL,
+      status TEXT NOT NULL,
+      date TEXT NOT NULL,
+      sort_order INTEGER NOT NULL
+    );
+  `);
+  console.log('SQLite database initialized successfully!');
+
+  // Helper to convert $1, $2 to ?
+  const convertSql = (sql) => sql.replace(/\$\d+/g, '?');
+
+  queryFn = async (text, params = []) => {
+    const converted = convertSql(text);
+    const stmt = db.prepare(converted);
+    if (text.trim().toUpperCase().startsWith('SELECT')) {
+      const rows = stmt.all(params);
+      return { rows };
+    } else {
+      const info = stmt.run(params);
+      return { rows: [], info };
+    }
+  };
+
+  poolObj = {
+    connect: async () => {
+      return {
+        query: async (text, params = []) => queryFn(text, params),
+        release: () => {}
+      };
+    }
+  };
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
-
-// Initialize tables
-const initDB = async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id VARCHAR(255) PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL DEFAULT 'default_user',
-        title TEXT NOT NULL,
-        text TEXT NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        date VARCHAR(50) NOT NULL,
-        sort_order INTEGER NOT NULL
-      );
-    `);
-    console.log('Database connected and initialized successfully!');
-  } catch (err) {
-    console.error('Error initializing database tables:', err);
-  }
-};
-
-initDB();
-
 module.exports = {
-  pool,
-  query: (text, params) => pool.query(text, params),
+  pool: poolObj,
+  query: queryFn,
 };

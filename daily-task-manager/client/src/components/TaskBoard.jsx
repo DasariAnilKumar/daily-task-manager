@@ -32,6 +32,7 @@ function TaskBoard() {
   const [tasks, setTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeColumnTab, setActiveColumnTab] = useState('todo');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -63,16 +64,16 @@ function TaskBoard() {
     return new Date(currentDate).toLocaleDateString('en-US', options);
   };
 
-  const handleSaveTask = async (title, text) => {
+  const handleSaveTask = async (title, text, status = 'todo') => {
     // Create new
-    const todoTasks = tasks.filter(t => t.status === 'todo');
-    const newSortOrder = todoTasks.length > 0 ? Math.max(...todoTasks.map(t => t.sort_order)) + 1 : 0;
+    const colTasks = tasks.filter(t => t.status === status);
+    const newSortOrder = colTasks.length > 0 ? Math.max(...colTasks.map(t => t.sort_order)) + 1 : 0;
 
     const newTask = {
       id: Date.now().toString(),
       title: title,
       text: text,
-      status: 'todo',
+      status: status,
       date: currentDate,
       sort_order: newSortOrder
     };
@@ -221,6 +222,24 @@ function TaskBoard() {
         </div>
       </div>
 
+      {/* Mobile Column switcher tabs */}
+      <div className="mobile-column-tabs">
+        {COLUMNS.map(col => {
+          const count = tasks.filter(t => t.status === col.id).length;
+          return (
+            <button
+              key={col.id}
+              className={`mobile-tab-btn ${activeColumnTab === col.id ? 'active' : ''}`}
+              onClick={() => setActiveColumnTab(col.id)}
+            >
+              <div className={`status-dot ${col.id}`}></div>
+              <span>{col.title}</span>
+              <span className="tab-count">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <DndContext 
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -234,7 +253,7 @@ function TaskBoard() {
               .sort((a, b) => a.sort_order - b.sort_order);
 
             return (
-              <div key={col.id} className="column">
+              <div key={col.id} className={`column ${activeColumnTab === col.id ? 'mobile-active' : ''}`}>
                 <div className="column-header">
                   <div className="column-header-title">
                     <div className={`status-dot ${col.id}`}></div>
@@ -279,6 +298,12 @@ function TaskBoard() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Floating Action Button for Mobile */}
+      <button className="mobile-fab" onClick={openAddModal}>
+        <Plus size={24} />
+      </button>
+
       <TaskModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

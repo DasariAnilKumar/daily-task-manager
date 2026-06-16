@@ -23,11 +23,13 @@ const formats = [
 export function TaskModal({ isOpen, onClose, onSave, initialTask }) {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
+  const [status, setStatus] = useState('todo');
 
   useEffect(() => {
     if (isOpen) {
       setContent(initialTask ? initialTask.text : '');
       setTitle(initialTask ? (initialTask.title || '') : '');
+      setStatus(initialTask ? (initialTask.status || 'todo') : 'todo');
     }
   }, [isOpen, initialTask]);
 
@@ -38,7 +40,7 @@ export function TaskModal({ isOpen, onClose, onSave, initialTask }) {
       alert('Title is required');
       return;
     }
-    onSave(title, content);
+    onSave(title, content, status);
   };
 
   return (
@@ -51,15 +53,32 @@ export function TaskModal({ isOpen, onClose, onSave, initialTask }) {
           </button>
         </div>
         
-        <div style={{ padding: '24px 24px 0' }}>
-          <input 
-            type="text" 
-            placeholder="Task Title (Required)" 
-            value={title} 
-            onChange={(e) => setTitle(e.target.value)}
-            className="form-input"
-            style={{ width: '100%', fontSize: '18px', fontWeight: 'bold' }}
-          />
+        <div style={{ padding: '24px 24px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>Task Title</label>
+            <input 
+              type="text" 
+              placeholder="Task Title (Required)" 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)}
+              className="form-input"
+              style={{ width: '100%', fontSize: '16px', fontWeight: 'bold' }}
+            />
+          </div>
+          
+          <div>
+            <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="form-input"
+              style={{ width: '100%', height: '42px', appearance: 'auto' }}
+            >
+              <option value="todo">To Do</option>
+              <option value="in-progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
         </div>
 
         <div className="quill-container">
