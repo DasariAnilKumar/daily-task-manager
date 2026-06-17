@@ -846,4 +846,48 @@ body {
       transform: translateY(0);
     }
   }
+
+  .sidebar-footer {
+    display: none !important;
+  }
+}
+
+/* Google reCAPTCHA Stylesheet Reset */
+iframe,
+.g-recaptcha iframe,
+iframe[title="reCAPTCHA"],
+iframe[src*="recaptcha"] {
+  border: none !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Custom Google Sign-In Button */
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 46px;
+  width: 100%;
+  background-color: #ffffff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.google-btn:hover {
+  background-color: #f9fafb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.google-btn:active {
+  transform: translateY(0);
 }

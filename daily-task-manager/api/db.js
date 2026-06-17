@@ -22,6 +22,14 @@ if (process.env.DATABASE_URL) {
   const initDB = async () => {
     try {
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(255) PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          email_enabled BOOLEAN NOT NULL DEFAULT FALSE
+        );
+      `);
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS tasks (
           id VARCHAR(255) PRIMARY KEY,
           user_id VARCHAR(255) NOT NULL DEFAULT 'default_user',
@@ -47,6 +55,12 @@ if (process.env.DATABASE_URL) {
 
   // Initialize tables (sqlite)
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      email_enabled BOOLEAN NOT NULL DEFAULT FALSE
+    );
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL DEFAULT 'default_user',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2 } from 'lucide-react';
 import { TaskModal } from './TaskModal';
+import { apiFetch } from '../utils/api';
 
 export default function TaskDetail() {
   const { id } = useParams();
@@ -16,7 +17,7 @@ export default function TaskDetail() {
 
   const fetchTask = async () => {
     try {
-      const res = await fetch(`/api/tasks/${id}`);
+      const res = await apiFetch(`/api/tasks/${id}`);
       if (!res.ok) throw new Error('Not found');
       const data = await res.json();
       setTask(data);
@@ -30,9 +31,8 @@ export default function TaskDetail() {
 
   const handleSaveEdit = async (title, text, status) => {
     try {
-      await fetch(`/api/tasks/${id}`, {
+      await apiFetch(`/api/tasks/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, text, status })
       });
       fetchTask();
@@ -44,9 +44,8 @@ export default function TaskDetail() {
 
   const handleStatusChange = async (newStatus) => {
     try {
-      await fetch(`/api/tasks/${id}`, {
+      await apiFetch(`/api/tasks/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       fetchTask();
@@ -58,7 +57,7 @@ export default function TaskDetail() {
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
       navigate('/');
     } catch (err) {
       console.error('Failed to delete', err);

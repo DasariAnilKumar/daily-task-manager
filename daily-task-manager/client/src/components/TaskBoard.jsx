@@ -18,6 +18,7 @@ import { SortableTask } from './SortableTask';
 import { DroppableColumn } from './DroppableColumn';
 import { TaskModal } from './TaskModal';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const COLUMNS = [
   { id: 'todo', title: 'To Do' },
@@ -45,7 +46,7 @@ function TaskBoard() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch(`/api/tasks?date=${currentDate}`);
+      const res = await apiFetch(`/api/tasks?date=${currentDate}`);
       const data = await res.json();
       setTasks(data);
     } catch (err) {
@@ -81,9 +82,8 @@ function TaskBoard() {
     setTasks(prev => [...prev, newTask]);
 
     try {
-      await fetch('/api/tasks', {
+      await apiFetch('/api/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTask)
       });
     } catch (err) {
@@ -100,7 +100,7 @@ function TaskBoard() {
   const handleDeleteTask = async (id) => {
     setTasks(prev => prev.filter(t => t.id !== id));
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.error('Failed to delete task', err);
     }
@@ -180,9 +180,8 @@ function TaskBoard() {
     if (updates.length > 0) {
       setTasks(newTasks);
       try {
-        await fetch('/api/tasks/batch', {
+        await apiFetch('/api/tasks/batch', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates })
         });
       } catch (err) {
