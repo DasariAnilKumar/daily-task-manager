@@ -6,6 +6,7 @@ import Settings from './components/Settings';
 import TaskDetail from './components/TaskDetail';
 import Login from './components/Login';
 import Register from './components/Register';
+import Landing from './components/Landing';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function ProtectedRoute({ children }) {
@@ -37,10 +38,14 @@ function ProtectedRoute({ children }) {
 function Layout({ children }) {
   const location = useLocation();
   const activeTab = location.pathname.includes('/settings') ? 'settings' : 'board';
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
 
-  // Do not show the navigation wrapper on login/register pages
-  if (location.pathname === '/login' || location.pathname === '/register') {
+  // Do not show the navigation wrapper on login/register pages or when showing the landing page
+  if (
+    location.pathname === '/login' || 
+    location.pathname === '/register' || 
+    (location.pathname === '/' && !token)
+  ) {
     return children;
   }
 
@@ -122,6 +127,11 @@ function Layout({ children }) {
   );
 }
 
+function HomeRoute() {
+  const { token } = useAuth();
+  return token ? <ProtectedRoute><TaskBoard /></ProtectedRoute> : <Landing />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -130,7 +140,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/" element={<ProtectedRoute><TaskBoard /></ProtectedRoute>} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/task/:id" element={<ProtectedRoute><TaskDetail /></ProtectedRoute>} />
           </Routes>
