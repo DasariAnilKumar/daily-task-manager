@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Settings as SettingsIcon, CheckSquare, LogOut, Shield, Bell } from 'lucide-react';
 import TaskBoard from './components/TaskBoard';
 import Settings from './components/Settings';
@@ -40,6 +40,7 @@ function ProtectedRoute({ children }) {
 
 function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   let activeTab = 'board';
   if (location.pathname.includes('/settings')) {
     activeTab = 'settings';
@@ -73,22 +74,9 @@ function Layout({ children }) {
     setShowPrompt(false);
   };
 
-  const handleEnable = async () => {
-    setSaving(true);
-    try {
-      const res = await apiFetch('/api/auth/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ email_enabled: true }),
-      });
-      if (res.ok) {
-        setUser(prev => ({ ...prev, email_enabled: true }));
-        setShowPrompt(false);
-      }
-    } catch (err) {
-      console.error('Failed to enable email notifications:', err);
-    } finally {
-      setSaving(false);
-    }
+  const handleEnable = () => {
+    setShowPrompt(false);
+    navigate('/settings?enable=1');
   };
 
   // Do not show the navigation wrapper on login/register pages or when showing the landing page

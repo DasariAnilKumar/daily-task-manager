@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckSquare, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function Landing() {
-  const words = ['tasks', 'summaries', 'workflow', 'time'];
+  const words = ['tasks', 'goals', 'plans', 'focus'];
   const [wordIndex, setWordIndex] = useState(0);
   const [animationClass, setAnimationClass] = useState('word-slide-in');
 
@@ -131,6 +131,10 @@ export default function Landing() {
           .hero-buttons {
             justify-content: center;
           }
+          .animate-slide-up-1 {
+            align-self: center !important;
+            margin: 0 auto !important;
+          }
           .landing-nav {
             padding: 16px 24px !important;
           }
@@ -140,7 +144,7 @@ export default function Landing() {
         }
         @media (max-width: 480px) {
           .hero-title {
-            font-size: 32px !important;
+            font-size: 28px !important;
           }
           .hero-buttons {
             flex-direction: column;

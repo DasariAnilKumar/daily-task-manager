@@ -26,7 +26,9 @@ if (process.env.DATABASE_URL) {
           id VARCHAR(255) PRIMARY KEY,
           email VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
-          email_enabled BOOLEAN NOT NULL DEFAULT FALSE
+          email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          email_time VARCHAR(255) NOT NULL DEFAULT '09:00',
+          timezone VARCHAR(255) NOT NULL DEFAULT 'Asia/Kolkata'
         );
       `);
       await pool.query(`
@@ -49,6 +51,16 @@ if (process.env.DATABASE_URL) {
           timestamp VARCHAR(255) NOT NULL
         );
       `);
+      try {
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_time VARCHAR(255) NOT NULL DEFAULT '09:00';`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: email_time column might already exist.');
+      }
+      try {
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(255) NOT NULL DEFAULT 'Asia/Kolkata';`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: timezone column might already exist.');
+      }
       console.log('PostgreSQL database connected and initialized successfully!');
     } catch (err) {
       console.error('Error initializing PostgreSQL tables:', err);
@@ -62,13 +74,14 @@ if (process.env.DATABASE_URL) {
   const dbPath = path.resolve(__dirname, 'database.sqlite');
   const db = new Database(dbPath);
 
-  // Initialize tables (sqlite)
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      email_enabled BOOLEAN NOT NULL DEFAULT FALSE
+      email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      email_time TEXT NOT NULL DEFAULT '09:00',
+      timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata'
     );
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
@@ -87,6 +100,16 @@ if (process.env.DATABASE_URL) {
       timestamp TEXT NOT NULL
     );
   `);
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN email_time TEXT NOT NULL DEFAULT '09:00';`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata';`);
+  } catch (alterErr) {
+    // Column already exists
+  }
   console.log('SQLite database initialized successfully!');
 
   // Helper to convert $1, $2 to ?

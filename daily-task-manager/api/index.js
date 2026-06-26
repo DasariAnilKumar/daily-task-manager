@@ -187,14 +187,14 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Insert user
     await query(
-      'INSERT INTO users (id, email, password, email_enabled) VALUES ($1, $2, $3, $4)',
-      [userId, email.toLowerCase(), hashedPassword, false]
+      'INSERT INTO users (id, email, password, email_enabled, email_time, timezone) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, email.toLowerCase(), hashedPassword, false, '09:00', 'Asia/Kolkata']
     );
 
     // Generate JWT
     const token = jwt.sign({ id: userId, email: email.toLowerCase() }, JWT_SECRET, { expiresIn: '7d' });
 
-    res.json({ success: true, token, user: { id: userId, email: email.toLowerCase(), email_enabled: false } });
+    res.json({ success: true, token, user: { id: userId, email: email.toLowerCase(), email_enabled: false, email_time: '09:00', timezone: 'Asia/Kolkata' } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -234,7 +234,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, email_enabled: !!user.email_enabled }
+      user: { id: user.id, email: user.email, email_enabled: !!user.email_enabled, email_time: user.email_time || '09:00', timezone: user.timezone || 'Asia/Kolkata' }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -300,11 +300,11 @@ app.post('/api/auth/google', async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
       await query(
-        'INSERT INTO users (id, email, password, email_enabled) VALUES ($1, $2, $3, $4)',
-        [userId, email, hashedPassword, false]
+        'INSERT INTO users (id, email, password, email_enabled, email_time, timezone) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, email, 'google_oauth_placeholder', false, '09:00', 'Asia/Kolkata']
       );
       
-      user = { id: userId, email, email_enabled: false };
+      user = { id: userId, email, email_enabled: false, email_time: '09:00', timezone: 'Asia/Kolkata' };
     } else {
       user = rows[0];
     }
@@ -315,7 +315,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, email_enabled: !!user.email_enabled }
+      user: { id: user.id, email: user.email, email_enabled: !!user.email_enabled, email_time: user.email_time || '09:00', timezone: user.timezone || 'Asia/Kolkata' }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -325,11 +325,13 @@ app.post('/api/auth/google', async (req, res) => {
 // Get profile details
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
-    const { rows } = await query('SELECT id, email, email_enabled FROM users WHERE id = $1', [req.user.id]);
+    const { rows } = await query('SELECT id, email, email_enabled, email_time, timezone FROM users WHERE id = $1', [req.user.id]);
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
     const user = rows[0];
     user.email_enabled = !!user.email_enabled;
+    user.email_time = user.email_time || '09:00';
+    user.timezone = user.timezone || 'Asia/Kolkata';
 
     res.json(user);
   } catch (err) {
@@ -337,12 +339,39 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
-// Update email notifications toggle
+// Update email notifications toggle and settings preferences
 app.put('/api/auth/settings', authenticateToken, async (req, res) => {
   try {
-    const { email_enabled } = req.body;
-    await query('UPDATE users SET email_enabled = $1 WHERE id = $2', [email_enabled, req.user.id]);
-    res.json({ success: true, email_enabled });
+    const { email_enabled, email_time, timezone } = req.body;
+    
+    let tz = timezone;
+    if (tz) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: tz });
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid timezone.' });
+      }
+    } else {
+      tz = 'Asia/Kolkata';
+    }
+
+    if (email_time !== undefined) {
+      // Validate format of email_time (e.g. HH:MM)
+      const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+      if (!timeRegex.test(email_time)) {
+        return res.status(400).json({ error: 'Invalid time format. Use HH:MM.' });
+      }
+      await query('UPDATE users SET email_enabled = $1, email_time = $2, timezone = $3 WHERE id = $4', [email_enabled, email_time, tz, req.user.id]);
+      res.json({ success: true, email_enabled, email_time, timezone: tz });
+    } else {
+      if (timezone !== undefined) {
+        await query('UPDATE users SET email_enabled = $1, timezone = $2 WHERE id = $3', [email_enabled, tz, req.user.id]);
+        res.json({ success: true, email_enabled, timezone: tz });
+      } else {
+        await query('UPDATE users SET email_enabled = $1 WHERE id = $2', [email_enabled, req.user.id]);
+        res.json({ success: true, email_enabled });
+      }
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -472,29 +501,29 @@ app.get('/api/cron/email', async (req, res) => {
       return res.status(400).json({ error: 'SMTP configurations are missing in environment.' });
     }
 
-    // Get current date and day of week in IST (GMT+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(Date.now() + istOffset);
-    const todayIST = istDate.toISOString().split('T')[0];
-    const dayOfWeek = istDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const isMonday = dayOfWeek === 1;
-
-    // Helper to format an overdue badge
-    const formatTaskDate = (taskDate) => {
-      if (taskDate < todayIST) {
-        return ` <span style="color: #ef4444; font-size: 11px; font-weight: bold; background-color: #fef2f2; padding: 2px 6px; border-radius: 4px; margin-left: 8px; border: 1px solid #fee2e2;">Overdue: ${taskDate}</span>`;
-      }
-      return '';
-    };
-
     // Query all users and filter active notification settings in Javascript
-    // (This is database-agnostic for Postgres booleans vs SQLite numeric values)
-    const { rows: allUsers } = await query("SELECT id, email, email_enabled FROM users");
-    const activeUsers = allUsers.filter(u => !!u.email_enabled);
+    // Filter users whose preferred email summary hour matches the current hour in their local timezone
+    const { rows: allUsers } = await query("SELECT id, email, email_enabled, email_time, timezone FROM users");
+    const activeUsers = allUsers.filter(u => {
+      if (!u.email_enabled) return false;
+      const tz = u.timezone || 'Asia/Kolkata';
+      
+      let userHour = new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        timeZone: tz
+      });
+      if (userHour === '24') userHour = '00';
+      userHour = userHour.padStart(2, '0');
+      
+      const userTime = u.email_time || '09:00';
+      const targetHour = userTime.split(':')[0];
+      return userHour === targetHour;
+    });
 
     if (activeUsers.length === 0) {
-      console.log('No users have enabled email notifications.');
-      return res.json({ success: true, message: 'No users have enabled email notifications.' });
+      console.log('No users match the current email cron hour.');
+      return res.json({ success: true, message: 'No users match the current email cron hour.' });
     }
 
     const nodemailer = require('nodemailer');
@@ -513,12 +542,36 @@ app.get('/api/cron/email', async (req, res) => {
 
     for (const user of activeUsers) {
       try {
+        const tz = user.timezone || 'Asia/Kolkata';
+        
+        // Get current date in user's timezone (YYYY-MM-DD)
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        const [{ value: month }, , { value: day }, , { value: year }] = formatter.formatToParts(new Date());
+        const todayLocal = `${year}-${month}-${day}`;
+
+        // Get local day of week to determine if it is Monday (1)
+        const localDate = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+        const isMondayLocal = localDate.getDay() === 1;
+
+        // Helper to format an overdue badge
+        const formatTaskDateLocal = (taskDate) => {
+          if (taskDate < todayLocal) {
+            return ` <span style="color: #ef4444; font-size: 11px; font-weight: bold; background-color: #fef2f2; padding: 2px 6px; border-radius: 4px; margin-left: 8px; border: 1px solid #fee2e2;">Overdue: ${taskDate}</span>`;
+          }
+          return '';
+        };
+
         // Query tasks for this specific user
-        const sqlQuery = isMonday
+        const sqlQuery = isMondayLocal
           ? "SELECT * FROM tasks WHERE user_id = $1 AND date <= $2 AND status != 'done' ORDER BY date ASC, status, sort_order"
           : "SELECT * FROM tasks WHERE user_id = $1 AND date = $2 AND status != 'done' ORDER BY status, sort_order";
 
-        const { rows: userTasks } = await query(sqlQuery, [user.id, todayIST]);
+        const { rows: userTasks } = await query(sqlQuery, [user.id, todayLocal]);
 
         if (userTasks.length === 0) {
           continue; // skip users with no pending tasks
@@ -527,11 +580,17 @@ app.get('/api/cron/email', async (req, res) => {
         const todoTasks = userTasks.filter(t => t.status === 'todo');
         const inProgressTasks = userTasks.filter(t => t.status === 'in-progress');
 
+        const localDisplayDate = new Date(todayLocal).toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+
         let htmlContent = `
           <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1a202c; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
             <h2 style="color: #6366f1; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-top: 0; font-size: 22px;">📋 Daily Pending Tasks Summary</h2>
             <p style="font-size: 15px; color: #4a5568; margin-bottom: 20px;">
-              Hello, here is your summary of pending tasks as of today, <strong>${new Date(todayIST).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>:
+              Hello, here is your summary of pending tasks as of today, <strong>${localDisplayDate}</strong>:
             </p>
         `;
 
@@ -541,7 +600,7 @@ app.get('/api/cron/email', async (req, res) => {
             <ul style="padding-left: 20px; margin: 8px 0; line-height: 1.6; color: #2d3748;">
               ${todoTasks.map(t => `
                 <li style="margin-bottom: 14px;">
-                  <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDate(t.date)}
+                  <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDateLocal(t.date)}
                   ${t.text ? `<div style="color: #718096; font-size: 13px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #edf2f7;">${t.text.replace(/<[^>]*>/g, '')}</div>` : ''}
                 </li>
               `).join('')}
@@ -555,7 +614,7 @@ app.get('/api/cron/email', async (req, res) => {
             <ul style="padding-left: 20px; margin: 8px 0; line-height: 1.6; color: #2d3748;">
               ${inProgressTasks.map(t => `
                 <li style="margin-bottom: 14px;">
-                  <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDate(t.date)}
+                  <strong style="font-size: 15px;">${t.title}</strong>${formatTaskDateLocal(t.date)}
                   ${t.text ? `<div style="color: #718096; font-size: 13px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #edf2f7;">${t.text.replace(/<[^>]*>/g, '')}</div>` : ''}
                 </li>
               `).join('')}
@@ -573,9 +632,9 @@ app.get('/api/cron/email', async (req, res) => {
         const mailOptions = {
           from: process.env.EMAIL_FROM || process.env.SMTP_USER,
           to: user.email,
-          subject: isMonday
+          subject: isMondayLocal
             ? `📋 MissionChecked: Weekly Task Overview (All Pending)`
-            : `📋 MissionChecked: Pending Tasks for ${todayIST}`,
+            : `📋 MissionChecked: Pending Tasks for ${todayLocal}`,
           html: htmlContent,
         };
 
