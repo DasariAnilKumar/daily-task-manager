@@ -565,7 +565,7 @@ app.get('/api/cron/email', async (req, res) => {
 
         htmlContent += `
             <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #edf2f7; font-size: 11px; color: #a0aec0; text-align: center;">
-              This is an automated notification from your Daily Task Manager (TaskFlow). You can disable these in your Settings.
+              This is an automated notification from your Daily Task Manager (MissionChecked). You can disable these in your Settings.
             </div>
           </div>
         `;
@@ -574,8 +574,8 @@ app.get('/api/cron/email', async (req, res) => {
           from: process.env.EMAIL_FROM || process.env.SMTP_USER,
           to: user.email,
           subject: isMonday
-            ? `📋 TaskFlow: Weekly Task Overview (All Pending)`
-            : `📋 TaskFlow: Pending Tasks for ${todayIST}`,
+            ? `📋 MissionChecked: Weekly Task Overview (All Pending)`
+            : `📋 MissionChecked: Pending Tasks for ${todayIST}`,
           html: htmlContent,
         };
 

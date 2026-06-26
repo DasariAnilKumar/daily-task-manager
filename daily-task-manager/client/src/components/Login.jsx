@@ -126,12 +126,13 @@ export default function Login() {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <CheckSquare size={30} color="var(--primary-color)" />
+                <CheckSquare size={26} color="#ffffff" />
               </div>
               <h1 style={{ fontSize: '24px', fontWeight: 700, marginTop: '8px' }}>Welcome back</h1>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Enter your details to sign in</p>
@@ -240,7 +241,7 @@ export default function Login() {
 
             {/* 6. Terms disclaimer */}
             <p className="agreement-text">
-              I agree to abide by TaskFlow's <Link to="#">Terms of Service</Link> and its <Link to="#">Privacy Policy</Link>
+              I agree to abide by MissionChecked's <Link to="#">Terms of Service</Link> and its <Link to="#">Privacy Policy</Link>
             </p>
 
             {/* 7. Link to signup */}
@@ -265,20 +266,22 @@ export default function Login() {
         <div className="glowing-orb orb-secondary"></div>
         
         <div className="glass-container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 24px' }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              backgroundColor: 'rgba(99, 102, 241, 0.2)',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
-              <Sparkles size={22} color="var(--primary-color)" />
+              <Sparkles size={20} color="#ffffff" />
             </div>
             <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>TaskFlow Workspace</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#ffffff' }}>MissionChecked Workspace</h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>Manage tasks with speed and simplicity</p>
             </div>
           </div>

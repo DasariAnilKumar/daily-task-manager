@@ -106,7 +106,7 @@ function Layout({ children }) {
       <div className="sidebar">
         <div className="sidebar-header">
           <CheckSquare size={28} color="var(--primary-color)" />
-          <span>TaskFlow</span>
+          <span>MissionChecked</span>
         </div>
         
         <nav style={{ flex: 1 }}>

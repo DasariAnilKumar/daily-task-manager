@@ -911,13 +911,18 @@ iframe[src*="recaptcha"] {
 }
 
 /* Split Layout CSS for Login/Register */
-/* Split Layout CSS for Login/Register */
 .split-container {
   display: grid;
   grid-template-columns: 550px 1fr;
   min-height: 100vh;
   width: 100%;
-  background-color: var(--bg-dark);
+  background-color: #000000;
+  --primary-color: #ffffff;
+  --primary-hover: #e4e4e7;
+  --todo-color: #a1a1aa;
+  --bg-dark: #000000;
+  --bg-panel: rgba(255, 255, 255, 0.02);
+  --border-color: rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 1024px) {
@@ -935,8 +940,8 @@ iframe[src*="recaptcha"] {
   justify-content: center;
   align-items: center;
   padding: 40px 24px;
-  background: radial-gradient(circle at 20% 80%, #151233 0%, #080716 100%);
-  border-right: 1px solid var(--border-color);
+  background: radial-gradient(circle at 20% 80%, #0d0d0d 0%, #000000 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   position: relative;
 }
@@ -945,7 +950,7 @@ iframe[src*="recaptcha"] {
   .form-side {
     border-right: none;
     padding: 32px 16px;
-    background: radial-gradient(circle at 50% 50%, #151233 0%, #080716 100%);
+    background: radial-gradient(circle at 50% 50%, #0d0d0d 0%, #000000 100%);
   }
 }
 
@@ -958,7 +963,7 @@ iframe[src*="recaptcha"] {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 24px;
   padding: 40px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -967,7 +972,7 @@ iframe[src*="recaptcha"] {
 }
 
 .auth-card:hover {
-  border-color: rgba(99, 102, 241, 0.15);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 @media (max-width: 480px) {
@@ -994,9 +999,37 @@ iframe[src*="recaptcha"] {
   justify-content: center;
   align-items: center;
   padding: 80px;
-  background: radial-gradient(circle at 80% 20%, #2e2a75 0%, #0c0a21 100%);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url('/auth_banner.png');
+  background-size: cover;
+  background-position: center;
   position: relative;
   overflow: hidden;
+}
+
+/* Custom Overrides for inputs and buttons inside split container */
+.split-container .form-input:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.split-container .primary-btn {
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 10px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.split-container .primary-btn:hover {
+  background-color: #e4e4e7;
+}
+
+.split-container .primary-btn:active {
+  transform: scale(0.98);
+}
+
+.split-container .glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Glowing background animations */
