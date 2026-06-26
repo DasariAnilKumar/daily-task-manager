@@ -161,9 +161,11 @@ export default function Register() {
             )}
 
             {/* 1. Google Sign-In Button */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
               {googleClientId ? (
-                <div id="google-signin-button" style={{ width: '100%', minHeight: '40px' }}></div>
+                <div style={{ colorScheme: 'light', width: '100%' }}>
+                  <div id="google-signin-button" style={{ width: '100%', minHeight: '40px' }}></div>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -228,7 +230,7 @@ export default function Register() {
               </div>
 
               {/* 4. reCAPTCHA */}
-              <div className="recaptcha-container">
+              <div className="recaptcha-container" style={{ colorScheme: 'light' }}>
                 <ReCAPTCHA
                   ref={recaptchaRef}
                   sitekey="6LeRSiQtAAAAAK2yXmXU28Xr8qSEH8_qmMUBz5ig"
