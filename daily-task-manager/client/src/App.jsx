@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Settings as SettingsIcon, CheckSquare, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, CheckSquare, LogOut, Shield, Bell } from 'lucide-react';
 import TaskBoard from './components/TaskBoard';
 import Settings from './components/Settings';
 import TaskDetail from './components/TaskDetail';
@@ -9,6 +9,7 @@ import Register from './components/Register';
 import Landing from './components/Landing';
 import Dashboard from './components/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { apiFetch } from './utils/api';
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth();
@@ -44,7 +45,50 @@ function Layout({ children }) {
   } else if (location.pathname.includes('/dashboard')) {
     activeTab = 'dashboard';
   }
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, setUser } = useAuth();
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Only prompt if logged in, notifications disabled, and not on /settings or /dashboard currently
+    if (user && user.email_enabled === false && !location.pathname.includes('/settings') && !location.pathname.includes('/dashboard')) {
+      const lastDismissed = localStorage.getItem('last_notif_prompt_dismiss');
+      const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+      
+      const shouldPrompt = !lastDismissed || (Date.now() - parseInt(lastDismissed) > threeDaysInMs);
+      
+      if (shouldPrompt) {
+        // Show the prompt modal after a 5 second delay
+        const timer = setTimeout(() => {
+          setShowPrompt(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user, location.pathname]);
+
+  const handleDismiss = () => {
+    localStorage.setItem('last_notif_prompt_dismiss', Date.now().toString());
+    setShowPrompt(false);
+  };
+
+  const handleEnable = async () => {
+    setSaving(true);
+    try {
+      const res = await apiFetch('/api/auth/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ email_enabled: true }),
+      });
+      if (res.ok) {
+        setUser(prev => ({ ...prev, email_enabled: true }));
+        setShowPrompt(false);
+      }
+    } catch (err) {
+      console.error('Failed to enable email notifications:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Do not show the navigation wrapper on login/register pages or when showing the landing page
   if (
@@ -139,6 +183,113 @@ function Layout({ children }) {
       <div className="main-content">
         {children}
       </div>
+
+      {/* Email Notification Prompt Modal */}
+      {showPrompt && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            .modal-card {
+              animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}} />
+          <div className="modal-card" style={{
+            backgroundColor: 'var(--bg-sidebar)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '440px',
+            width: '90%',
+            boxShadow: 'var(--shadow-xl)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            color: 'var(--text-main)'
+          }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'start' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary-color)',
+                flexShrink: 0
+              }}>
+                <Bell size={24} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Stay on Track!</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Would you like to receive a daily summary of your pending tasks directly in your inbox?
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button 
+                onClick={handleDismiss}
+                disabled={saving}
+                className="secondary-btn"
+                style={{ 
+                  padding: '10px 18px', 
+                  fontSize: '14px', 
+                  cursor: 'pointer',
+                  border: '1px solid var(--border-color)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  borderRadius: '8px',
+                  fontWeight: 500
+                }}
+              >
+                Not Now
+              </button>
+              <button 
+                onClick={handleEnable}
+                disabled={saving}
+                className="primary-btn"
+                style={{ 
+                  padding: '10px 20px', 
+                  fontSize: '14px', 
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--primary-color)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = 'var(--primary-hover)'}
+                onMouseOut={(e) => e.target.style.backgroundColor = 'var(--primary-color)'}
+              >
+                {saving ? 'Enabling...' : 'Yes, Enable'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
