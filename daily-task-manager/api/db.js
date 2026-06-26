@@ -40,6 +40,15 @@ if (process.env.DATABASE_URL) {
           sort_order INTEGER NOT NULL
         );
       `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS visit_logs (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255),
+          path VARCHAR(255) NOT NULL,
+          user_agent TEXT,
+          timestamp VARCHAR(255) NOT NULL
+        );
+      `);
       console.log('PostgreSQL database connected and initialized successfully!');
     } catch (err) {
       console.error('Error initializing PostgreSQL tables:', err);
@@ -69,6 +78,13 @@ if (process.env.DATABASE_URL) {
       status TEXT NOT NULL,
       date TEXT NOT NULL,
       sort_order INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS visit_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      path TEXT NOT NULL,
+      user_agent TEXT,
+      timestamp TEXT NOT NULL
     );
   `);
   console.log('SQLite database initialized successfully!');

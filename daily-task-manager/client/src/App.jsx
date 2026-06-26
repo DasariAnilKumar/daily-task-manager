@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Settings as SettingsIcon, CheckSquare, LogOut } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, CheckSquare, LogOut, Shield } from 'lucide-react';
 import TaskBoard from './components/TaskBoard';
 import Settings from './components/Settings';
 import TaskDetail from './components/TaskDetail';
 import Login from './components/Login';
 import Register from './components/Register';
 import Landing from './components/Landing';
+import Dashboard from './components/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function ProtectedRoute({ children }) {
@@ -37,7 +38,12 @@ function ProtectedRoute({ children }) {
 
 function Layout({ children }) {
   const location = useLocation();
-  const activeTab = location.pathname.includes('/settings') ? 'settings' : 'board';
+  let activeTab = 'board';
+  if (location.pathname.includes('/settings')) {
+    activeTab = 'settings';
+  } else if (location.pathname.includes('/dashboard')) {
+    activeTab = 'dashboard';
+  }
   const { user, token, logout } = useAuth();
 
   // Do not show the navigation wrapper on login/register pages or when showing the landing page
@@ -74,6 +80,16 @@ function Layout({ children }) {
             <SettingsIcon size={20} />
             Settings
           </Link>
+
+          {user?.email?.toLowerCase() === 'anilkumard707@gmail.com' && (
+            <Link 
+              to="/dashboard"
+              className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            >
+              <Shield size={20} />
+              Admin Dashboard
+            </Link>
+          )}
         </nav>
 
         {/* User profile footer in Sidebar */}
@@ -127,6 +143,32 @@ function Layout({ children }) {
   );
 }
 
+function PageTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const logVisit = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        await fetch('/api/analytics/log', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ path: location.pathname }),
+        });
+      } catch (err) {
+        console.error('Failed to log page view:', err);
+      }
+    };
+    logVisit();
+  }, [location]);
+
+  return null;
+}
+
 function HomeRoute() {
   const { token } = useAuth();
   return token ? <ProtectedRoute><TaskBoard /></ProtectedRoute> : <Landing />;
@@ -136,12 +178,14 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <PageTracker />
         <Layout>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/" element={<HomeRoute />} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/task/:id" element={<ProtectedRoute><TaskDetail /></ProtectedRoute>} />
           </Routes>
         </Layout>

@@ -46,6 +46,116 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const requireAdmin = (req, res, next) => {
+  if (!req.user || !req.user.email || req.user.email.toLowerCase() !== 'anilkumard707@gmail.com') {
+    return res.status(403).json({ error: 'Access denied: Admin only' });
+  }
+  next();
+};
+
+// --- Admin Endpoints ---
+
+// Get all users with task count
+app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT u.id, u.email, u.email_enabled, COUNT(t.id) AS task_count
+      FROM users u
+      LEFT JOIN tasks t ON u.id = t.user_id
+      GROUP BY u.id, u.email, u.email_enabled
+      ORDER BY u.email ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Post visitor access log (Public endpoint, optional authorization token)
+app.post('/api/analytics/log', async (req, res) => {
+  try {
+    const { path } = req.body;
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    let userId = null;
+
+    // Try decoding auth token if present
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded.id;
+      } catch (err) {
+        // Silent token validation failure - treat as anonymous
+      }
+    }
+
+    const logId = Date.now().toString() + Math.random().toString(36).substring(2, 7);
+    const timestamp = new Date().toISOString();
+
+    await query(
+      'INSERT INTO visit_logs (id, user_id, path, user_agent, timestamp) VALUES ($1, $2, $3, $4, $5)',
+      [logId, userId, path || '/', userAgent, timestamp]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get admin analytics metrics (restricted)
+app.get('/api/admin/analytics', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // 1. Total page views
+    const totalViewsRes = await query('SELECT COUNT(*) AS count FROM visit_logs');
+    const totalViews = parseInt(totalViewsRes.rows[0]?.count || 0);
+
+    // 2. Anonymous page views
+    const anonViewsRes = await query('SELECT COUNT(*) AS count FROM visit_logs WHERE user_id IS NULL');
+    const anonymousViews = parseInt(anonViewsRes.rows[0]?.count || 0);
+
+    // 3. Logged-in page views
+    const loggedInViews = totalViews - anonymousViews;
+
+    // 4. Unique active logged-in users count
+    const uniqueLoggedRes = await query('SELECT COUNT(DISTINCT user_id) AS count FROM visit_logs WHERE user_id IS NOT NULL');
+    const uniqueLoggedUsers = parseInt(uniqueLoggedRes.rows[0]?.count || 0);
+
+    // 5. Page views group by path (top 10 popular paths)
+    const pageStatsRes = await query(`
+      SELECT path, COUNT(*) AS count 
+      FROM visit_logs 
+      GROUP BY path 
+      ORDER BY count DESC 
+      LIMIT 10
+    `);
+    const pageStats = pageStatsRes.rows;
+
+    // 6. Recent logs (last 20 access entries, with email)
+    const recentLogsRes = await query(`
+      SELECT v.id, v.path, v.user_agent, v.timestamp, u.email
+      FROM visit_logs v
+      LEFT JOIN users u ON v.user_id = u.id
+      ORDER BY v.timestamp DESC
+      LIMIT 20
+    `);
+    const recentLogs = recentLogsRes.rows;
+
+    res.json({
+      totalViews,
+      anonymousViews,
+      loggedInViews,
+      uniqueLoggedUsers,
+      pageStats,
+      recentLogs
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // --- Auth Endpoints ---
 
 // Register User
