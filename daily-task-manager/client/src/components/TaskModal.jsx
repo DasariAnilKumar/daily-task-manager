@@ -40,6 +40,13 @@ export function TaskModal({ isOpen, onClose, onSave, initialTask }) {
       alert('Title is required');
       return;
     }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
+    if (content.length > MAX_SIZE) {
+      alert('The task details are too large (maximum size is 5MB). If you added large images, please compress or resize them and try again.');
+      return;
+    }
+
     onSave(title, content, status);
   };
 
