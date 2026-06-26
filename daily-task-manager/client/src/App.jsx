@@ -10,6 +10,7 @@ import Landing from './components/Landing';
 import Dashboard from './components/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { apiFetch } from './utils/api';
+import { Analytics } from '@vercel/analytics/react';
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth();
@@ -330,6 +331,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <PageTracker />
+        <Analytics />
         <Layout>
           <Routes>
             <Route path="/login" element={<Login />} />
