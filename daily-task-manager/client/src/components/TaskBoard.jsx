@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCorners,
@@ -17,6 +17,7 @@ import {
 import { SortableTask } from './SortableTask';
 import { DroppableColumn } from './DroppableColumn';
 import { TaskModal } from './TaskModal';
+import { AiAssistantModal } from './AiAssistantModal';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
@@ -34,15 +35,33 @@ function TaskBoard() {
   const [activeTask, setActiveTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeColumnTab, setActiveColumnTab] = useState('todo');
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [selectedAiTask, setSelectedAiTask] = useState(null);
+
+  const handleOpenAiModal = (task) => {
+    setSelectedAiTask(task);
+    setIsAiModalOpen(true);
+  };
+
+  const handleUpdateTaskText = async (id, updatedFields) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updatedFields } : t));
+    try {
+      await apiFetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updatedFields)
+      });
+      if (selectedAiTask && selectedAiTask.id === id) {
+        setSelectedAiTask(prev => ({ ...prev, ...updatedFields }));
+      }
+    } catch (err) {
+      console.error('Failed to update task via AI', err);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-
-  useEffect(() => {
-    fetchTasks();
-  }, [currentDate]);
 
   const fetchTasks = async () => {
     try {
@@ -53,6 +72,10 @@ function TaskBoard() {
       console.error('Failed to fetch tasks', err);
     }
   };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [currentDate]);
 
   const handleDateChange = (days) => {
     const d = new Date(currentDate);
@@ -247,9 +270,22 @@ function TaskBoard() {
       >
         <div className="board-container">
           {COLUMNS.map(col => {
+            const getPriorityWeight = (p) => {
+              if (!p) return 0;
+              const lower = p.toLowerCase();
+              if (lower === 'high') return 3;
+              if (lower === 'medium') return 2;
+              if (lower === 'low') return 1;
+              return 0;
+            };
+
             const columnTasks = tasks
               .filter(t => t.status === col.id)
-              .sort((a, b) => a.sort_order - b.sort_order);
+              .sort((a, b) => {
+                const pDiff = getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+                if (pDiff !== 0) return pDiff;
+                return a.sort_order - b.sort_order;
+              });
 
             return (
               <div key={col.id} className={`column ${activeColumnTab === col.id ? 'mobile-active' : ''}`}>
@@ -271,7 +307,13 @@ function TaskBoard() {
                 >
                   <DroppableColumn id={col.id}>
                     {columnTasks.map(task => (
-                      <SortableTask key={task.id} id={task.id} task={task} onDelete={handleDeleteTask} />
+                      <SortableTask 
+                        key={task.id} 
+                        id={task.id} 
+                        task={task} 
+                        onDelete={handleDeleteTask} 
+                        onAiClick={handleOpenAiModal} 
+                      />
                     ))}
                   </DroppableColumn>
                 </SortableContext>
@@ -302,6 +344,18 @@ function TaskBoard() {
       <button className="mobile-fab" onClick={openAddModal}>
         <Plus size={24} />
       </button>
+
+      {isAiModalOpen && (
+        <AiAssistantModal
+          isOpen={isAiModalOpen}
+          onClose={() => {
+            setIsAiModalOpen(false);
+            setSelectedAiTask(null);
+          }}
+          task={selectedAiTask}
+          onUpdateTask={handleUpdateTaskText}
+        />
+      )}
 
       <TaskModal 
         isOpen={isModalOpen} 

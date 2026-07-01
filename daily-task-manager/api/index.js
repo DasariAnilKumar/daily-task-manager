@@ -427,7 +427,7 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
 app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, sort_order, text, title } = req.body;
+    const { status, sort_order, text, title, priority, ideas, effort_size, effort_time, effort_reasoning } = req.body;
     const user_id = req.user.id;
     
     const { rows } = await query('SELECT * FROM tasks WHERE id = $1 AND user_id = $2', [id, user_id]);
@@ -438,9 +438,14 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
       SET status = COALESCE($1, status), 
           sort_order = COALESCE($2, sort_order),
           text = COALESCE($3, text),
-          title = COALESCE($4, title)
-      WHERE id = $5 AND user_id = $6
-    `, [status, sort_order, text, title, id, user_id]);
+          title = COALESCE($4, title),
+          priority = COALESCE($5, priority),
+          ideas = COALESCE($6, ideas),
+          effort_size = COALESCE($7, effort_size),
+          effort_time = COALESCE($8, effort_time),
+          effort_reasoning = COALESCE($9, effort_reasoning)
+      WHERE id = $10 AND user_id = $11
+    `, [status, sort_order, text, title, priority, ideas, effort_size, effort_time, effort_reasoning, id, user_id]);
     
     res.json({ success: true });
   } catch (err) {
@@ -484,6 +489,304 @@ app.post('/api/tasks/batch', authenticateToken, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// --- Subtasks API ---
+
+// Get all subtasks for a task
+app.get('/api/tasks/:taskId/subtasks', authenticateToken, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const user_id = req.user.id;
+    
+    // Verify task belongs to user
+    const taskCheck = await query('SELECT id FROM tasks WHERE id = $1 AND user_id = $2', [taskId, user_id]);
+    if (taskCheck.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    
+    const { rows } = await query('SELECT * FROM subtasks WHERE task_id = $1 ORDER BY id ASC', [taskId]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create a new subtask
+app.post('/api/tasks/:taskId/subtasks', authenticateToken, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title } = req.body;
+    const user_id = req.user.id;
+    
+    if (!title) return res.status(400).json({ error: 'Subtask title is required' });
+    
+    // Verify task belongs to user
+    const taskCheck = await query('SELECT id FROM tasks WHERE id = $1 AND user_id = $2', [taskId, user_id]);
+    if (taskCheck.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
+    await query(
+      'INSERT INTO subtasks (id, task_id, title, completed) VALUES ($1, $2, $3, $4)',
+      [id, taskId, title, false]
+    );
+    
+    res.json({ success: true, subtask: { id, task_id: taskId, title, completed: false } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a subtask (title or completion status)
+app.put('/api/subtasks/:subtaskId', authenticateToken, async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const { title, completed } = req.body;
+    const user_id = req.user.id;
+    
+    // Verify subtask belongs to task of current user
+    const subtaskCheck = await query(`
+      SELECT s.id 
+      FROM subtasks s
+      JOIN tasks t ON s.task_id = t.id
+      WHERE s.id = $1 AND t.user_id = $2
+    `, [subtaskId, user_id]);
+    
+    if (subtaskCheck.rows.length === 0) return res.status(404).json({ error: 'Subtask not found' });
+    
+    await query(`
+      UPDATE subtasks 
+      SET title = COALESCE($1, title), 
+          completed = COALESCE($2, completed)
+      WHERE id = $3
+    `, [title, completed !== undefined ? completed : null, subtaskId]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a subtask
+app.delete('/api/subtasks/:subtaskId', authenticateToken, async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const user_id = req.user.id;
+    
+    // Verify subtask belongs to task of current user
+    const subtaskCheck = await query(`
+      SELECT s.id 
+      FROM subtasks s
+      JOIN tasks t ON s.task_id = t.id
+      WHERE s.id = $1 AND t.user_id = $2
+    `, [subtaskId, user_id]);
+    
+    if (subtaskCheck.rows.length === 0) return res.status(404).json({ error: 'Subtask not found' });
+    
+    await query('DELETE FROM subtasks WHERE id = $1', [subtaskId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/ai
+app.post('/api/ai', authenticateToken, async (req, res) => {
+  const { action, text, taskTitle, taskDescription } = req.body;
+
+  if (!action) {
+    return res.status(400).json({ error: 'Action is required' });
+  }
+
+  const supportedActions = ['summary', 'rewrite', 'subtasks', 'ideas', 'estimate', 'priority'];
+  if (!supportedActions.includes(action)) {
+    return res.status(400).json({ error: `Unsupported action: ${action}` });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.error('GROQ_API_KEY is not defined in environment variables.');
+    return res.status(500).json({ error: 'AI features are not configured. Please contact the administrator to set up GROQ_API_KEY.' });
+  }
+
+  // System prompt templates
+  let systemPrompt = '';
+  switch (action) {
+    case 'summary':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Summarize the task or text in 2 to 5 brief, actionable bullet points.
+You must return a JSON object with a single key "summary" which contains an array of strings (the bullet points).
+Keep the summary concise and productivity-focused. Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "summary": [
+    "Review draft proposal for team feedback.",
+    "Correct budget errors in section 3.",
+    "Submit final copy by Friday afternoon."
+  ]
+}`;
+      break;
+
+    case 'rewrite':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Rewrite the task description to be clear, concise, and actionable, while preserving the original meaning.
+You must return a JSON object with a single key "rewrittenText" which contains the rewritten text. You may use clean HTML tags (like <p>, <ul>, <li>, <strong>) if appropriate, but keep it minimal and clean.
+Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "rewrittenText": "Review the design guidelines and update the buttons component to match the new token definitions."
+}`;
+      break;
+
+    case 'subtasks':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Convert the task title and description or paragraph into a checklist of actionable subtasks.
+You must return a JSON object with a single key "subtasks" which contains an array of strings (each representing a single actionable subtask).
+Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "subtasks": [
+    "Create a new database migration file.",
+    "Define columns for the notifications table.",
+    "Run migrations and verify constraints."
+  ]
+}`;
+      break;
+
+    case 'ideas':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Based on the task title and description, suggest practical next steps, ideas, or improvements.
+You must return a JSON object with a single key "ideas" which contains an array of strings (the suggested next steps or ideas).
+Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "ideas": [
+    "Consider setting up an index on the user_id column for faster queries.",
+    "Draft a quick questionnaire to gather feedback from initial testers.",
+    "Add client-side validation to prevent duplicate submissions."
+  ]
+}`;
+      break;
+
+    case 'estimate':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Classify the effort for the task as "Small", "Medium", or "Large". Provide an estimated completion time and a brief explanation of your reasoning (1-2 sentences).
+You must return a JSON object with the keys "size", "timeEstimate", and "reasoning".
+Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "size": "Medium",
+  "timeEstimate": "4 hours",
+  "reasoning": "Setting up OAuth requires configuring API credentials and implementing token validation callbacks on the server, which takes moderate effort."
+}`;
+      break;
+
+    case 'priority':
+      systemPrompt = `You are a concise, productivity-focused AI assistant. Recommend a priority (High, Medium, Low) for the task and briefly explain why (1-2 sentences).
+You must return a JSON object with the keys "priority" and "reasoning".
+Do not include any introductory or concluding text, explanations, or markdown formatting outside the JSON object itself.
+Never fabricate details not present in the input.
+
+Example response format:
+{
+  "priority": "High",
+  "reasoning": "This task addresses a security vulnerability where database passwords could be exposed in debug logs, making it highly urgent."
+}`;
+      break;
+  }
+
+  // Construct the user content
+  let userContent = '';
+  if (text) {
+    userContent = `Input Text:\n"""\n${text}\n"""`;
+  } else {
+    userContent = `Task Title: ${taskTitle || 'Untitled'}\nTask Description: ${taskDescription || '(No description provided)'}`;
+  }
+
+  const payload = {
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent }
+    ],
+    temperature: 0.4,
+    response_format: { type: 'json_object' }
+  };
+
+  const callGroq = async () => {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorJson;
+      try {
+        errorJson = JSON.parse(errorText);
+      } catch (e) {}
+      const message = errorJson?.error?.message || `Groq API responded with status ${response.status}`;
+      const code = errorJson?.error?.code || null;
+      
+      const errorObj = new Error(message);
+      errorObj.status = response.status;
+      errorObj.code = code;
+      throw errorObj;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('Groq returned an empty response.');
+    }
+
+    try {
+      return JSON.parse(content);
+    } catch (err) {
+      console.error('Failed to parse Groq response content as JSON:', content);
+      throw new Error('AI response was not in valid JSON format. Please try again.');
+    }
+  };
+
+  // Retry logic (try up to 2 times for transient failures)
+  let attempts = 0;
+  const maxAttempts = 2;
+  let lastError;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const result = await callGroq();
+      return res.json(result);
+    } catch (err) {
+      lastError = err;
+      console.warn(`Groq API call attempt ${attempts} failed: ${err.message}`);
+      
+      // Don't retry if it's an authorization/bad request error or client setup issue
+      if (err.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
+        break;
+      }
+      
+      // Wait a short duration before retrying if rate limited (429) or server error (5xx)
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  // Gracefully handle rate limit errors or general failures
+  if (lastError.status === 429 || lastError.code === 'rate_limit_exceeded') {
+    return res.status(429).json({ error: 'AI Assistant rate limit reached. Please wait a moment before trying again.' });
+  }
+
+  res.status(lastError.status || 500).json({ error: lastError.message || 'An error occurred while calling the AI Assistant.' });
 });
 
 // Daily Cron Job to email pending tasks

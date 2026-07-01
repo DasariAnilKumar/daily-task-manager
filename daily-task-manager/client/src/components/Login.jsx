@@ -282,7 +282,7 @@ export default function Login() {
             </div>
             <div>
               <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#ffffff' }}>MissionChecked Workspace</h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>Manage tasks with speed and simplicity</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>Manage tasks with AI-powered automation</p>
             </div>
           </div>
 
@@ -315,6 +315,18 @@ export default function Login() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span>Email automation test</span>
                 <span style={{ color: 'var(--in-progress-color)', fontWeight: 600 }}>Today</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card">
+            <div className="glass-card-title" style={{ color: '#a5b4fc' }}>
+              <Sparkles size={16} color="var(--primary-color)" />
+              AI Copilot Enabled
+            </div>
+            <div className="glass-card-body">
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                Prioritizing boards, generating subtasks checklists, and estimating effort sizes dynamically.
               </div>
             </div>
           </div>

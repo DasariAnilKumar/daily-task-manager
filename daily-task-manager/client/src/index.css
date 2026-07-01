@@ -1391,3 +1391,106 @@ iframe[src*="recaptcha"] {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* AI Assistant Styles */
+.ai-loader-spin {
+  animation: ai-spin 1.5s linear infinite;
+}
+
+@keyframes ai-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-result-container {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-panel);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ai-fade-in 0.2s ease-out;
+}
+
+@keyframes ai-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: var(--bg-panel-hover);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ai-result-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ai-result-body {
+  padding: 16px;
+  font-size: 14px;
+}
+
+/* AI badges for priority and size */
+.ai-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+/* Priority & Size Levels */
+.ai-badge.small, .ai-badge.low {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ai-badge.medium {
+  background-color: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.ai-badge.large, .ai-badge.high {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.ai-action-item {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-action-item:hover {
+  border-color: var(--primary-color) !important;
+  background-color: rgba(99, 102, 241, 0.05) !important;
+  color: var(--primary-color) !important;
+  transform: translateY(-1px);
+}
+
+.ai-btn {
+  margin-right: 6px;
+}
+
+.task-card:hover .ai-btn {
+  opacity: 1;
+}

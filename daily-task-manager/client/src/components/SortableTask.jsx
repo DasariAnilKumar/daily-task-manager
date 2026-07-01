@@ -1,10 +1,9 @@
-import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export function SortableTask({ id, task, onDelete }) {
+export function SortableTask({ id, task, onDelete, onAiClick }) {
   const {
     attributes,
     listeners,
@@ -30,7 +29,7 @@ export function SortableTask({ id, task, onDelete }) {
       <div 
         {...attributes}
         {...listeners}
-        style={{ flex: 1, paddingRight: '24px' }}
+        style={{ flex: 1, paddingRight: '64px' }}
       >
         <Link 
           to={`/task/${id}`} 
@@ -39,9 +38,29 @@ export function SortableTask({ id, task, onDelete }) {
           <div className="task-text" style={{ fontWeight: 600, fontSize: '15px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {task.title || 'Untitled'}
           </div>
+          {task.priority && (
+            <div style={{ marginTop: '6px', display: 'flex' }}>
+              <span className={`ai-badge ${task.priority.toLowerCase()}`} style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>
+                🔥 {task.priority}
+              </span>
+            </div>
+          )}
         </Link>
       </div>
       <div className="task-actions" style={{ position: 'absolute', top: '12px', right: '12px' }}>
+        <button 
+          className="icon-btn ai-btn"
+          style={{ marginRight: '6px' }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAiClick(task);
+          }}
+        >
+          <Sparkles size={16} color="var(--primary-color)" />
+        </button>
         <button 
           className="icon-btn delete-btn"
           onPointerDown={(e) => {

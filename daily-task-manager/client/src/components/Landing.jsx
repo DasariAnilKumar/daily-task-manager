@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckSquare, ArrowRight, Sparkles } from 'lucide-react';
 
@@ -250,6 +250,17 @@ export default function Landing() {
             margin: 0,
             color: '#ffffff'
           }}>
+            <span style={{ 
+              fontSize: '13px', 
+              textTransform: 'uppercase', 
+              letterSpacing: '3px', 
+              color: 'var(--primary-color)', 
+              display: 'block', 
+              marginBottom: '14px',
+              fontWeight: 700
+            }}>
+              ✨ AI-Powered Daily Task Manager
+            </span>
             Organize work.<br />
             Automate your{' '}
             <span className={`gradient-text ${animationClass}`} style={{
@@ -271,7 +282,7 @@ export default function Landing() {
             maxWidth: '560px',
             margin: 0
           }}>
-            MissionChecked is a minimalist daily task manager featuring interactive glassmorphic Kanban boards and automated email summaries to keep you productive.
+            MissionChecked is an AI-powered daily task manager featuring interactive glassmorphic Kanban boards, automatic subtask checklists, smart effort estimators, and automated email summaries.
           </p>
 
           {/* Actions */}
@@ -333,6 +344,27 @@ export default function Landing() {
             display: 'flex',
             flexDirection: 'column'
           }}>
+            {/* Catchy AI badge at the top of the mockup */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 10px',
+              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: '6px',
+              fontSize: '10px',
+              fontWeight: 700,
+              color: '#a5b4fc',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              alignSelf: 'flex-start',
+              transform: 'translateZ(10px)'
+            }}>
+              <Sparkles size={11} color="#a5b4fc" />
+              <span>AI-Powered Board Preview</span>
+            </div>
+
             {/* Columns list */}
             <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', transform: 'translateZ(20px)', border: '1px solid rgba(255, 255, 255, 0.05)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
@@ -340,8 +372,19 @@ export default function Landing() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#e4e4e7' }}>To Do</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: '#ffffff' }}>Launch Campaign</div>
-                <div style={{ fontSize: '11px', color: '#9ca3af' }}>Publish product link on socials</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: '#ffffff' }}>Launch Campaign</div>
+                  <Sparkles size={14} color="#a5b4fc" style={{ flexShrink: 0 }} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>Publish product link on socials</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    🔥 High
+                  </span>
+                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#c7d2fe', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                    ⏱ Small (2h)
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -351,8 +394,16 @@ export default function Landing() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#a1a1aa' }}>In Progress</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: '#ffffff' }}>Analytics Logging</div>
-                <div style={{ fontSize: '11px', color: '#9ca3af' }}>Tracking visits on missionchecked.com</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: '#ffffff' }}>Analytics Logging</div>
+                  <Sparkles size={14} color="#a5b4fc" style={{ flexShrink: 0 }} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>Tracking visits on missionchecked.com</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#fde68a', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    🔥 Medium
+                  </span>
+                </div>
               </div>
             </div>
           </div>

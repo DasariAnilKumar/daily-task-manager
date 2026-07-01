@@ -57,10 +57,39 @@ if (process.env.DATABASE_URL) {
         console.log('Postgres migration note: email_time column might already exist.');
       }
       try {
-        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(255) NOT NULL DEFAULT 'Asia/Kolkata';`);
+        await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ideas TEXT;`);
       } catch (alterErr) {
-        console.log('Postgres migration note: timezone column might already exist.');
+        console.log('Postgres migration note: ideas column might already exist.');
       }
+      try {
+        await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS effort_size VARCHAR(50);`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: effort_size column might already exist.');
+      }
+      try {
+        await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS effort_time VARCHAR(100);`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: effort_time column might already exist.');
+      }
+      try {
+        await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS effort_reasoning TEXT;`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: effort_reasoning column might already exist.');
+      }
+      try {
+        await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(50);`);
+      } catch (alterErr) {
+        console.log('Postgres migration note: priority column might already exist.');
+      }
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS subtasks (
+          id VARCHAR(255) PRIMARY KEY,
+          task_id VARCHAR(255) NOT NULL,
+          title TEXT NOT NULL,
+          completed BOOLEAN NOT NULL DEFAULT FALSE,
+          FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+        );
+      `);
       console.log('PostgreSQL database connected and initialized successfully!');
     } catch (err) {
       console.error('Error initializing PostgreSQL tables:', err);
@@ -110,6 +139,41 @@ if (process.env.DATABASE_URL) {
   } catch (alterErr) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN ideas TEXT;`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN effort_size TEXT;`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN effort_time TEXT;`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN effort_reasoning TEXT;`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT;`);
+  } catch (alterErr) {
+    // Column already exists
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subtasks (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
+    );
+  `);
   console.log('SQLite database initialized successfully!');
 
   // Helper to convert $1, $2 to ?
