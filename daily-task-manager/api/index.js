@@ -588,8 +588,54 @@ app.delete('/api/subtasks/:subtaskId', authenticateToken, async (req, res) => {
   }
 });
 
+// Simple in-memory store for rate limiting AI requests to protect Groq free tier API limits
+const aiRateLimits = new Map(); // key: userId, value: { count, resetTime, lastRequestTime }
+
+const aiRateLimiter = (req, res, next) => {
+  const userId = req.user?.id || 'anonymous';
+  const now = Date.now();
+  
+  if (!aiRateLimits.has(userId)) {
+    aiRateLimits.set(userId, {
+      count: 1,
+      resetTime: now + 60 * 1000, // 1 minute window
+      lastRequestTime: now
+    });
+    return next();
+  }
+  
+  const limit = aiRateLimits.get(userId);
+  
+  // Cooldown check: minimum 3 seconds between requests to avoid accidental spam
+  if (now - limit.lastRequestTime < 3000) {
+    return res.status(429).json({
+      error: 'Please wait a few seconds before asking the AI again.'
+    });
+  }
+  
+  // Reset window check
+  if (now > limit.resetTime) {
+    limit.count = 1;
+    limit.resetTime = now + 60 * 1000;
+    limit.lastRequestTime = now;
+    return next();
+  }
+  
+  // Max 5 requests per minute per user
+  if (limit.count >= 5) {
+    const secondsLeft = Math.ceil((limit.resetTime - now) / 1000);
+    return res.status(429).json({
+      error: `Too many AI requests. Please try again in ${secondsLeft} seconds.`
+    });
+  }
+  
+  limit.count += 1;
+  limit.lastRequestTime = now;
+  next();
+};
+
 // POST /api/ai
-app.post('/api/ai', authenticateToken, async (req, res) => {
+app.post('/api/ai', authenticateToken, aiRateLimiter, async (req, res) => {
   const { action, text, taskTitle, taskDescription } = req.body;
 
   if (!action) {
