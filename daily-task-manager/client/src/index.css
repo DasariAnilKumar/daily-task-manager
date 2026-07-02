@@ -849,6 +849,11 @@ body {
     }
   }
 
+  /* Make task card action buttons always visible on mobile screens */
+  .task-card .icon-btn {
+    opacity: 1;
+  }
+
   .sidebar-footer {
     display: none !important;
   }
@@ -1493,4 +1498,11 @@ iframe[src*="recaptcha"] {
 
 .task-card:hover .ai-btn {
   opacity: 1;
+}
+
+/* Touch devices / Mobile support (when hover is not available) */
+@media (hover: none) {
+  .task-card .icon-btn {
+    opacity: 1;
+  }
 }
